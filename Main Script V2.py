@@ -21,10 +21,9 @@ pokemon_frame_offset_y = 0
 pokemon_frame_offset_x = 0
 pokemon_frame_width = 210
 pokemon_frame_height = 228
-pokemon_x, pokemon_y = random.randint(100,x-100), random.randint(100,y-100)     #choose random coordinates for it to spawn at
-if trainer_x - 40 < trainer_x < pokemon_x + 40 and pokemon_y - 40 < trainer_y < pokemon_y + 40:                 #if pokemon spawns on trainer
-    while not(trainer_x - 40 < trainer_x < pokemon_x + 40 and pokemon_y - 40 < trainer_y < pokemon_y + 40):
-        pokemon_x, pokemon_y = random.randint(100, x - 100), random.randint(100, y - 100)
+pokemon_x, pokemon_y = random.randint(200,x-200), random.randint(200,y-200)     #choose random coordinates for it to spawn at
+while (trainer_x - 100 < pokemon_x < trainer_x + 100) and (trainer_y - 100 < pokemon_y < trainer_y + 100):
+    pokemon_x, pokemon_y = random.randint(200, x - 200), random.randint(200, y - 200)
 
 #initialisation
 pygame.init()
