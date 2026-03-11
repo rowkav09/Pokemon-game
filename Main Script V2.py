@@ -3,7 +3,7 @@ import sys
 from pygame import mouse
 import pygame
 
-#variables
+#region Variables
 x, y = 800, 700
 tile_width = x/2
 tile_height = y/2
@@ -16,6 +16,8 @@ trainer_frame_offset_x, trainer_frame_offset_y = 177, 45  #black padding offset 
 facing = 'down'
 animation_speed = 0.005                    #animation speed (frames per ms)
 frame_index = 0.0                          #initialise frame index
+# endregion
+
 #pokemon_frame_offset
 
 #initialisation
@@ -46,17 +48,18 @@ for row in range(4):
         frame = pygame.transform.scale(frame, (trainer_width, trainer_height))  #pre-scale once
         animations[direction].append(frame)
     #pokemon
-'''pokemon_sheet = pygame.image.load("images/3d_starter_sheet.png").convert_alpha()
+    #TODO make random pokemon pop up in the centre of the screen
+pokemon_sheet = pygame.image.load("images/3d_starter_sheet.png").convert_alpha()
 pokemon_pool = []
 for row in range(4):
     for col in range(4):
-        frame = pokemon_sheet.subsurface(pygame.Rect(
+        pokemon_frame = pokemon_sheet.subsurface(pygame.Rect(
             pokemon_frame_offset_x + col * frame_width,
             pokemon_frame_offset_y + row * frame_height,
             frame_width, frame_height
         ))
-        frame = pygame.transform.scale(frame, (trainer_width, trainer_height))  #pre-scale once
-        animations[direction].append(frame)'''
+        pokemon_frame = pygame.transform.scale(frame, (pokemon_width, pokemon_height))  #pre-scale once
+        .append(pokemon_frame)
         
 #event loop
 while True:
