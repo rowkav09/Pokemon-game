@@ -2,21 +2,29 @@
 import sys
 from pygame import mouse
 import pygame
+import random
 
 #variables
 x, y = 800, 700
 tile_width = x/2
 tile_height = y/2
 clicked = False
-trainer_x, trainer_y = 500.0, 300.0       #floats for smooth sub-pixel movement
+trainer_x, trainer_y = 375.0, 300.0       #trainer start coordinates
 trainer_speed = 0.3                        #walk speed (pixels per ms)
-trainer_width, trainer_height = 70, 90    #trainer proportions
+trainer_width, trainer_height = 90, 110    #trainer proportions
 trainer_frame_width, trainer_frame_height = 121, 126      #actual frame size (sprites don't start at 0,0)
 trainer_frame_offset_x, trainer_frame_offset_y = 177, 45  #black padding offset in sprite sheet
 facing = 'down'
 animation_speed = 0.005                    #animation speed (frames per ms)
 frame_index = 0.0                          #initialise frame index
-#pokemon_frame_offset
+pokemon_frame_offset_y = 0
+pokemon_frame_offset_x = 0
+pokemon_frame_width = 210
+pokemon_frame_height = 228
+pokemon_x, pokemon_y = random.randint(100,x-100), random.randint(100,y-100)     #choose random coordinates for it to spawn at
+if trainer_x - 40 < trainer_x < pokemon_x + 40 and pokemon_y - 40 < trainer_y < pokemon_y + 40:                 #if pokemon spawns on trainer
+    while not(trainer_x - 40 < trainer_x < pokemon_x + 40 and pokemon_y - 40 < trainer_y < pokemon_y + 40):
+        pokemon_x, pokemon_y = random.randint(100, x - 100), random.randint(100, y - 100)
 
 #initialisation
 pygame.init()
@@ -46,17 +54,20 @@ for row in range(4):
         frame = pygame.transform.scale(frame, (trainer_width, trainer_height))  #pre-scale once
         animations[direction].append(frame)
     #pokemon
-'''pokemon_sheet = pygame.image.load("images/3d_starter_sheet.png").convert_alpha()
+pokemon_sheet = pygame.image.load("images/3d_starter_sheet.png").convert_alpha()        #load in the image into a variable
 pokemon_pool = []
 for row in range(4):
-    for col in range(4):
+    for col in range(6):
         frame = pokemon_sheet.subsurface(pygame.Rect(
-            pokemon_frame_offset_x + col * frame_width,
-            pokemon_frame_offset_y + row * frame_height,
-            frame_width, frame_height
+            pokemon_frame_offset_x + col * pokemon_frame_width,
+            pokemon_frame_offset_y + row * pokemon_frame_height,
+            pokemon_frame_width, pokemon_frame_height
         ))
         frame = pygame.transform.scale(frame, (trainer_width, trainer_height))  #pre-scale once
-        animations[direction].append(frame)'''
+        pokemon_pool.append(frame)              #add each respective pokemon starter image to the pool
+pokemon_frame = random.choice(pokemon_pool)  # choose a random pokemon to appear (from pool)
+if random.randint(0, 1):
+    pokemon_frame = pygame.transform.flip(pokemon_frame, True, False)  # horizontal flip only
         
 #event loop
 while True:
@@ -76,22 +87,22 @@ while True:
     moving = False
 
     #movement block — multiply by dt so speed is consistent regardless of framerate
-    if keys[pygame.K_LEFT] and trainer_x > 0:
+    if keys[pygame.K_LEFT] and trainer_x > 0 and not(pokemon_x < trainer_x < pokemon_x + 80 and pokemon_y - 80 < trainer_y < pokemon_y + 80):
         trainer_x -= trainer_speed * dt
         facing = 'left'
         moving = True
 
-    if keys[pygame.K_RIGHT] and trainer_x < x - trainer_width:
+    if keys[pygame.K_RIGHT] and trainer_x < x - trainer_width and not(pokemon_x - 80 < trainer_x < pokemon_x and pokemon_y - 80 < trainer_y < pokemon_y + 80):
         trainer_x += trainer_speed * dt
         facing = 'right'
         moving = True
 
-    if keys[pygame.K_UP] and trainer_y > 0:
+    if keys[pygame.K_UP] and trainer_y > 0 and not(pokemon_y  < trainer_y < pokemon_y + 80 and pokemon_x-40 < trainer_x < pokemon_x + 40):
         trainer_y -= trainer_speed * dt
         facing = 'up'
         moving = True
 
-    if keys[pygame.K_DOWN] and trainer_y < y - trainer_height:
+    if keys[pygame.K_DOWN] and trainer_y < y - trainer_height and not(pokemon_y - 80 < trainer_y < pokemon_y and pokemon_x-40 < trainer_x < pokemon_x + 40):
         trainer_y += trainer_speed * dt
         facing = 'down'
         moving = True
@@ -115,7 +126,15 @@ while True:
             screen.blit(background, (col * tile_width, row * tile_height))
 
     #print the sprite — round coords to avoid  jitter
-    frame = animations[facing][int(frame_index)]
-    screen.blit(frame, (round(trainer_x), round(trainer_y)))
+    trainer_frame = animations[facing][int(frame_index)]
+    screen.blit(
+        trainer_frame,
+        (round(trainer_x),
+         round(trainer_y))
+    )
+    screen.blit(
+        pokemon_frame,
+        (pokemon_x, pokemon_y)
+    )
 
     pygame.display.flip()
