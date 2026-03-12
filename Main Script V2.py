@@ -4,6 +4,16 @@ from pygame import mouse
 import pygame
 import random
 
+#functions
+def reset_pokemon_spawn():
+    global pokemon_caught, caught_time, pokemon_x, pokemon_y, pokemon_frame
+    pokemon_caught = False
+    caught_time = 0
+    pokemon_x, pokemon_y =  random.randint(200,x-200), random.randint(200,y-200)     #choose random coordinates for it to spawn at
+    while (trainer_x - 100 < pokemon_x < trainer_x + 100) and (trainer_y - 100 < pokemon_y < trainer_y + 100):  #make sure it doesnt spawn on trainer
+        pokemon_x, pokemon_y = random.randint(200, x - 200), random.randint(200, y - 200)# new random position
+    pokemon_frame = random.choice(pokemon_pool)  # new random pokemon
+
 #variables
 x, y = 800, 700
 tile_width = x/2
@@ -11,7 +21,7 @@ tile_height = y/2
 clicked = False
 trainer_x, trainer_y = 375.0, 300.0       #trainer start coordinates
 trainer_speed = 0.3                        #walk speed (pixels per ms)
-trainer_width, trainer_height = 90, 110    #trainer proportions
+trainer_width, trainer_height = 120,140    #trainer proportions
 trainer_frame_width, trainer_frame_height = 121, 126      #actual frame size (sprites don't start at 0,0)
 trainer_frame_offset_x, trainer_frame_offset_y = 177, 45  #black padding offset in sprite sheet
 facing = 'down'
@@ -21,14 +31,17 @@ pokemon_frame_offset_y = 0
 pokemon_frame_offset_x = 0
 pokemon_frame_width = 210
 pokemon_frame_height = 228
+pokemon_width, pokemon_height = 90, 100
 pokemon_x, pokemon_y = random.randint(200,x-200), random.randint(200,y-200)     #choose random coordinates for it to spawn at
 while (trainer_x - 100 < pokemon_x < trainer_x + 100) and (trainer_y - 100 < pokemon_y < trainer_y + 100):  #make sure it doesnt spawn on trainer
     pokemon_x, pokemon_y = random.randint(200, x - 200), random.randint(200, y - 200)
 pokeball_thrown = False
-pokeball_height, pokeball_width = 10 , 10
+pokeball_height, pokeball_width = 20,20
 pokeball_flip = False
 pokemon_caught = False
 throw_start = 0                            #tracks when the pokeball was thrown
+pokeball_count = 1
+caught_time = 0
 
 #initialisation
 pygame.init()
@@ -67,7 +80,7 @@ for row in range(4):
             pokemon_frame_offset_y + row * pokemon_frame_height,
             pokemon_frame_width, pokemon_frame_height
         ))
-        frame = pygame.transform.scale(frame, (trainer_width, trainer_height))  #pre-scale once
+        frame = pygame.transform.scale(frame, (pokemon_width, pokemon_height))  #pre-scale once
         pokemon_pool.append(frame)              #add each respective pokemon starter image to the pool
 pokemon_frame = random.choice(pokemon_pool)  # choose a random pokemon to appear (from pool)
 if random.randint(0, 1):
@@ -87,10 +100,15 @@ while True:
                 pygame.quit()
                 sys.exit()
             #throw pokeball on single keypress, only if close enough and not already thrown
-            if event.key == pygame.K_SPACE and not pokeball_thrown and not pokemon_caught:
+            if event.key == pygame.K_SPACE and not pokeball_thrown and not pokemon_caught and pokeball_count > 0:
                 if (pokemon_x - 100 < trainer_x < pokemon_x + 100) and (pokemon_y - 100 < trainer_y < pokemon_y + 100):
                     pokeball_thrown = True
                     throw_start = pygame.time.get_ticks()   #snapshot the time of the throw
+                    pokeball_count -= 1
+
+            if event.key == pygame.K_SPACE and pokeball_count <= 0:
+                print('not enogh pokeballs')
+
         if event.type == pygame.MOUSEBUTTONDOWN:
             if event.button == 1:
                 clicked = True
@@ -160,17 +178,25 @@ while True:
         else:
             #print(pokeball)
             screen.blit(
-                pokeball, (pokemon_x - pokemon_frame_width/2, pokemon_y - pokemon_frame_height /2)
+                pokeball, (pokemon_x + 30, pokemon_y + 50)
             )
     if pokemon_caught:
-        # print caught notification at top of screen
-        text = font.render("Caught!", True, (255, 255, 255))  # text in notification
-        caught_pill = pygame.Surface((text.get_width() + 20, text.get_height() + 10),
-                                     pygame.SRCALPHA)  # notification background
+        if caught_time == 0:
+            caught_time = pygame.time.get_ticks()      #starts timer for when to fade out 'caught' notification
+
+        elapsed = pygame.time.get_ticks() - caught_time      #time elapsed where 'caught' is on screen
+        alpha = max(0, 300 - elapsed // 8)           #turns time elapsed into a computable transparency to be used on caught text and the pill behind it
+
+        font = pygame.font.SysFont("couriernew", 25, bold=True)
+        text = font.render("Caught!", True, (255, 255, 100))
+        caught_pill = pygame.Surface((text.get_width() + 20, text.get_height() + 10), pygame.SRCALPHA)
         caught_pill.fill((0, 0, 0, 150))
+        text.set_alpha(alpha)               #sets the transparency to alpha
+        caught_pill.set_alpha(alpha)
         screen.blit(caught_pill, (400 - caught_pill.get_width() // 2, 20))
         screen.blit(text, (400 - text.get_width() // 2, 25))
-
+        if alpha == 0:
+            reset_pokemon_spawn()
 
     #the hint (that says [space] to throw
     font = pygame.font.SysFont("couriernew",20, bold=True)        #font of hint
@@ -182,10 +208,28 @@ while True:
         # then draw text on top
     screen.blit(hint, (x - 200, y - 50))
 
+    #pokeball counter top left
+    pokeball_font = pygame.font.SysFont('couriernew',20, bold=True)
+    pokeball_counter = font.render(f'{pokeball_count}', True, (255, 255, 255))
+    if pokeball_count == 0:
+        pokeball_counter = font.render(f'{pokeball_count}', True, (255, 0,0))                  #counter goes red if 0 pokeballs
+    pokeball_pill = pygame.Surface((60, 20), pygame.SRCALPHA)         #pokeball counter pill dimensions
+    pokeball_pill.fill((0,0,0, 150))                                       #pokemon colour
+    screen.blit(pokeball_pill, (5,10))
+    pokeball = pygame.transform.scale(pokeball, (30,30))          #enlarge pokeball a bit
+    screen.blit(pokeball,(4,2))
+    screen.blit(pokeball_counter, (35, 10))
+    pokeball = pygame.transform.scale(pokeball, (pokeball_width, pokeball_height))     #change pokeball dimensions back
+
     pygame.display.flip()
 
 #todo 1. get catching working ✔️
 #todo 2. add in a caught message (temporary banner) ✔️
-#todo 3. add in a pokeball counter
-#todo 4. add in multiple spawning pokemon
-#todo 5. add in a pokedex (with shadows for undiscovered pokemon) and names of pokemon too
+#todo 3. add in a pokeball counter ✔️
+#todo 4. make the 'caught' banner fade away ✔️
+#todo 5. add in multiple spawning pokemon ✔️
+#todo 6. make it so you can run over where the caught pokemon was again ✔️
+#todo 7. add in a pokedex button
+#todo 8. add stars around pokemon and catch animation (wiggle)
+#todo 9. add in pokedex (with shadows for undiscovered pokemon) and names of pokemon too (scrollable and sorrtred into generations) i.e gen 1 bulbasaur charizard squirtle, gen 2...
+#todo 10. add in opening screen (fades in) and a login (which tracks pokedex)
