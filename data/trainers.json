@@ -1,0 +1,42 @@
+[
+  {
+    "id": "youngster_ben",
+    "name": "Youngster Ben",
+    "sprite": "npc_youngster",
+    "dialogue_before": ["Hey! I bet my Pokémon is stronger than yours!", "Let's battle!"],
+    "dialogue_after": ["Wow, you're really strong!", "I need to train more..."],
+    "battle_team": [
+      {"pokemon_id": 19, "level": 5, "moves": ["tackle", "tail_whip", "quick_attack"]},
+      {"pokemon_id": 21, "level": 4, "moves": ["peck", "growl"]}
+    ],
+    "x": 300, "y": 400, "direction": "down",
+    "defeated": false
+  },
+  {
+    "id": "lass_lily",
+    "name": "Lass Lily",
+    "sprite": "npc_lass",
+    "dialogue_before": ["La la la... Oh! A trainer! Battle me!", "My Pokémon are cute AND strong!"],
+    "dialogue_after": ["You won this time, but I'll be back!", "My Pokémon need more love..."],
+    "battle_team": [
+      {"pokemon_id": 10, "level": 6, "moves": ["tackle", "string_shot"]},
+      {"pokemon_id": 13, "level": 6, "moves": ["poison_sting", "string_shot"]}
+    ],
+    "x": 550, "y": 200, "direction": "left",
+    "defeated": false
+  },
+  {
+    "id": "villager_oak",
+    "name": "Prof. Oak",
+    "sprite": "npc_professor",
+    "dialogue": [
+      "Welcome to the world of Pokémon!",
+      "Wild Pokémon lurk in the tall grass.",
+      "Press SPACE near a Pokémon to enter battle.",
+      "Catch Pokémon with Poké Balls from your bag.",
+      "Good luck on your adventure, Trainer!"
+    ],
+    "x": 150, "y": 150, "direction": "right",
+    "is_trainer": false
+  }
+]

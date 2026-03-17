@@ -1,0 +1,170 @@
+[
+  {
+    "id": 1, "name": "Bulbasaur", "types": ["grass", "poison"],
+    "base_stats": {"hp": 45, "attack": 49, "defense": 49, "sp_attack": 65, "sp_defense": 65, "speed": 45},
+    "base_exp": 64, "catch_rate": 45, "evolves_to": 2, "evolve_level": 16,
+    "sprite_index": 0,
+    "moves": ["tackle", "growl", "vine_whip", "leech_seed"]
+  },
+  {
+    "id": 2, "name": "Ivysaur", "types": ["grass", "poison"],
+    "base_stats": {"hp": 60, "attack": 62, "defense": 63, "sp_attack": 80, "sp_defense": 80, "speed": 60},
+    "base_exp": 142, "catch_rate": 45, "evolves_to": 3, "evolve_level": 32,
+    "sprite_index": 1,
+    "moves": ["tackle", "vine_whip", "razor_leaf", "sleep_powder"]
+  },
+  {
+    "id": 3, "name": "Venusaur", "types": ["grass", "poison"],
+    "base_stats": {"hp": 80, "attack": 82, "defense": 83, "sp_attack": 100, "sp_defense": 100, "speed": 80},
+    "base_exp": 236, "catch_rate": 45, "evolves_to": null, "evolve_level": null,
+    "sprite_index": 2,
+    "moves": ["razor_leaf", "sleep_powder", "solar_beam", "body_slam"]
+  },
+  {
+    "id": 4, "name": "Charmander", "types": ["fire"],
+    "base_stats": {"hp": 39, "attack": 52, "defense": 43, "sp_attack": 60, "sp_defense": 50, "speed": 65},
+    "base_exp": 62, "catch_rate": 45, "evolves_to": 5, "evolve_level": 16,
+    "sprite_index": 3,
+    "moves": ["scratch", "growl", "ember", "smokescreen"]
+  },
+  {
+    "id": 5, "name": "Charmeleon", "types": ["fire"],
+    "base_stats": {"hp": 58, "attack": 64, "defense": 58, "sp_attack": 80, "sp_defense": 65, "speed": 80},
+    "base_exp": 142, "catch_rate": 45, "evolves_to": 6, "evolve_level": 36,
+    "sprite_index": 4,
+    "moves": ["scratch", "ember", "slash", "flamethrower"]
+  },
+  {
+    "id": 6, "name": "Charizard", "types": ["fire", "flying"],
+    "base_stats": {"hp": 78, "attack": 84, "defense": 78, "sp_attack": 109, "sp_defense": 85, "speed": 100},
+    "base_exp": 240, "catch_rate": 45, "evolves_to": null, "evolve_level": null,
+    "sprite_index": 5,
+    "moves": ["flamethrower", "slash", "fire_spin", "wing_attack"]
+  },
+  {
+    "id": 7, "name": "Squirtle", "types": ["water"],
+    "base_stats": {"hp": 44, "attack": 48, "defense": 65, "sp_attack": 50, "sp_defense": 64, "speed": 43},
+    "base_exp": 63, "catch_rate": 45, "evolves_to": 8, "evolve_level": 16,
+    "sprite_index": 6,
+    "moves": ["tackle", "tail_whip", "water_gun", "withdraw"]
+  },
+  {
+    "id": 8, "name": "Wartortle", "types": ["water"],
+    "base_stats": {"hp": 59, "attack": 63, "defense": 80, "sp_attack": 65, "sp_defense": 80, "speed": 58},
+    "base_exp": 142, "catch_rate": 45, "evolves_to": 9, "evolve_level": 36,
+    "sprite_index": 7,
+    "moves": ["water_gun", "withdraw", "bite", "rapid_spin"]
+  },
+  {
+    "id": 9, "name": "Blastoise", "types": ["water"],
+    "base_stats": {"hp": 79, "attack": 83, "defense": 100, "sp_attack": 85, "sp_defense": 105, "speed": 78},
+    "base_exp": 239, "catch_rate": 45, "evolves_to": null, "evolve_level": null,
+    "sprite_index": 8,
+    "moves": ["water_gun", "bite", "hydro_pump", "protect"]
+  },
+  {
+    "id": 10, "name": "Caterpie", "types": ["bug"],
+    "base_stats": {"hp": 45, "attack": 30, "defense": 35, "sp_attack": 20, "sp_defense": 20, "speed": 45},
+    "base_exp": 39, "catch_rate": 255, "evolves_to": 11, "evolve_level": 7,
+    "sprite_index": 9,
+    "moves": ["tackle", "string_shot"]
+  },
+  {
+    "id": 11, "name": "Metapod", "types": ["bug"],
+    "base_stats": {"hp": 50, "attack": 20, "defense": 55, "sp_attack": 25, "sp_defense": 25, "speed": 30},
+    "base_exp": 72, "catch_rate": 120, "evolves_to": 12, "evolve_level": 10,
+    "sprite_index": 10,
+    "moves": ["harden"]
+  },
+  {
+    "id": 12, "name": "Butterfree", "types": ["bug", "flying"],
+    "base_stats": {"hp": 60, "attack": 45, "defense": 50, "sp_attack": 90, "sp_defense": 80, "speed": 70},
+    "base_exp": 178, "catch_rate": 45, "evolves_to": null, "evolve_level": null,
+    "sprite_index": 11,
+    "moves": ["confusion", "stun_spore", "sleep_powder", "psybeam"]
+  },
+  {
+    "id": 13, "name": "Weedle", "types": ["bug", "poison"],
+    "base_stats": {"hp": 40, "attack": 35, "defense": 30, "sp_attack": 20, "sp_defense": 20, "speed": 50},
+    "base_exp": 39, "catch_rate": 255, "evolves_to": 14, "evolve_level": 7,
+    "sprite_index": 12,
+    "moves": ["poison_sting", "string_shot"]
+  },
+  {
+    "id": 14, "name": "Kakuna", "types": ["bug", "poison"],
+    "base_stats": {"hp": 45, "attack": 25, "defense": 50, "sp_attack": 25, "sp_defense": 25, "speed": 35},
+    "base_exp": 72, "catch_rate": 120, "evolves_to": 15, "evolve_level": 10,
+    "sprite_index": 13,
+    "moves": ["harden"]
+  },
+  {
+    "id": 15, "name": "Beedrill", "types": ["bug", "poison"],
+    "base_stats": {"hp": 65, "attack": 90, "defense": 40, "sp_attack": 45, "sp_defense": 80, "speed": 75},
+    "base_exp": 178, "catch_rate": 45, "evolves_to": null, "evolve_level": null,
+    "sprite_index": 14,
+    "moves": ["fury_attack", "poison_sting", "twineedle", "pin_missile"]
+  },
+  {
+    "id": 16, "name": "Pidgey", "types": ["normal", "flying"],
+    "base_stats": {"hp": 40, "attack": 45, "defense": 40, "sp_attack": 35, "sp_defense": 35, "speed": 56},
+    "base_exp": 50, "catch_rate": 255, "evolves_to": 17, "evolve_level": 18,
+    "sprite_index": 15,
+    "moves": ["tackle", "sand_attack", "gust", "quick_attack"]
+  },
+  {
+    "id": 17, "name": "Pidgeotto", "types": ["normal", "flying"],
+    "base_stats": {"hp": 63, "attack": 60, "defense": 55, "sp_attack": 50, "sp_defense": 50, "speed": 71},
+    "base_exp": 122, "catch_rate": 120, "evolves_to": 18, "evolve_level": 36,
+    "sprite_index": 16,
+    "moves": ["gust", "quick_attack", "wing_attack", "agility"]
+  },
+  {
+    "id": 18, "name": "Pidgeot", "types": ["normal", "flying"],
+    "base_stats": {"hp": 83, "attack": 80, "defense": 75, "sp_attack": 70, "sp_defense": 70, "speed": 101},
+    "base_exp": 216, "catch_rate": 45, "evolves_to": null, "evolve_level": null,
+    "sprite_index": 17,
+    "moves": ["wing_attack", "agility", "aerial_ace", "hyper_beam"]
+  },
+  {
+    "id": 19, "name": "Rattata", "types": ["normal"],
+    "base_stats": {"hp": 30, "attack": 56, "defense": 35, "sp_attack": 25, "sp_defense": 35, "speed": 72},
+    "base_exp": 51, "catch_rate": 255, "evolves_to": 20, "evolve_level": 20,
+    "sprite_index": 18,
+    "moves": ["tackle", "tail_whip", "quick_attack", "hyper_fang"]
+  },
+  {
+    "id": 20, "name": "Raticate", "types": ["normal"],
+    "base_stats": {"hp": 55, "attack": 81, "defense": 60, "sp_attack": 50, "sp_defense": 70, "speed": 97},
+    "base_exp": 145, "catch_rate": 90, "evolves_to": null, "evolve_level": null,
+    "sprite_index": 19,
+    "moves": ["quick_attack", "hyper_fang", "super_fang", "body_slam"]
+  },
+  {
+    "id": 21, "name": "Spearow", "types": ["normal", "flying"],
+    "base_stats": {"hp": 40, "attack": 60, "defense": 30, "sp_attack": 31, "sp_defense": 31, "speed": 70},
+    "base_exp": 52, "catch_rate": 255, "evolves_to": 22, "evolve_level": 20,
+    "sprite_index": 20,
+    "moves": ["peck", "growl", "leer", "fury_attack"]
+  },
+  {
+    "id": 22, "name": "Fearow", "types": ["normal", "flying"],
+    "base_stats": {"hp": 65, "attack": 90, "defense": 65, "sp_attack": 61, "sp_defense": 61, "speed": 100},
+    "base_exp": 155, "catch_rate": 90, "evolves_to": null, "evolve_level": null,
+    "sprite_index": 21,
+    "moves": ["fury_attack", "peck", "drill_peck", "agility"]
+  },
+  {
+    "id": 23, "name": "Ekans", "types": ["poison"],
+    "base_stats": {"hp": 35, "attack": 60, "defense": 44, "sp_attack": 40, "sp_defense": 54, "speed": 55},
+    "base_exp": 58, "catch_rate": 255, "evolves_to": 24, "evolve_level": 22,
+    "sprite_index": 22,
+    "moves": ["wrap", "leer", "poison_sting", "acid"]
+  },
+  {
+    "id": 24, "name": "Arbok", "types": ["poison"],
+    "base_stats": {"hp": 60, "attack": 95, "defense": 69, "sp_attack": 65, "sp_defense": 79, "speed": 80},
+    "base_exp": 157, "catch_rate": 90, "evolves_to": null, "evolve_level": null,
+    "sprite_index": 23,
+    "moves": ["poison_sting", "acid", "glare", "bite"]
+  }
+]

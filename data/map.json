@@ -1,0 +1,11 @@
+{
+  "name": "Pallet Town Outskirts",
+  "world_width": 1600,
+  "world_height": 1400,
+  "bg_image": "maps/grassy.jpg",
+  "bg_colour": [40, 80, 40],
+  "spawn_x": 750.0,
+  "spawn_y": 650.0,
+  "collision_rects": [],
+  "exits": {}
+}
