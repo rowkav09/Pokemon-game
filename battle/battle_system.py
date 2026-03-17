@@ -106,6 +106,7 @@ class BattleSystem:
         self._messages:  list[str] = []
         self._pending_player_action: BattleAction | None = None
         self._turn_count = 0
+        self.last_catch_success = False
 
     # ------------------------------------------------------------------
     # Convenience properties
@@ -169,6 +170,7 @@ class BattleSystem:
 
         # ---------- RUN ----------
         if action.kind == "run":
+            self.last_catch_success = False
             if self.is_wild:
                 results.append(BattleResult(
                     phase=BattlePhase.WIN,
@@ -186,16 +188,17 @@ class BattleSystem:
         # ---------- ITEM ----------
         if action.kind == "item":
             item = action.item
-            msg  = self._use_item(item)
-            results.append(BattleResult(phase=BattlePhase.ANIMATING, messages=[msg]))
-            # Enemy retaliates
-            enemy_result = self._execute_enemy_move()
-            results.extend(enemy_result)
+            item_messages, caught = self._use_item(item)
+            results.append(BattleResult(phase=BattlePhase.ANIMATING, messages=item_messages))
+            if not caught:
+                enemy_result = self._execute_enemy_move()
+                results.extend(enemy_result)
             self._advance_phase_after_turn(results)
             return results
 
         # ---------- SWITCH ----------
         if action.kind == "switch":
+            self.last_catch_success = False
             new_idx = action.switch_to
             if new_idx is not None and 0 <= new_idx < len(self.player_team):
                 self.player_idx = new_idx
@@ -208,6 +211,7 @@ class BattleSystem:
 
         # ---------- MOVE ----------
         player_move  = action.move
+        self.last_catch_success = False
         player_first = self._player_goes_first()
 
         if player_first:
@@ -322,20 +326,26 @@ class BattleSystem:
         if enemy.fainted:
             return results
 
-        # Simple AI: pick highest-power usable move
+        # Basic AI: prefer finishing hit, then status setup, then strongest matchup
         usable = [m for m in enemy.moves if m.current_pp > 0]
         if not usable:
             results.append(BattleResult(phase=BattlePhase.ANIMATING,
                            messages=[f"{enemy.name} has no moves left!"]))
             return results
 
-        # Prefer moves that are super-effective
         def move_priority(mi):
             from battle.type_chart import get_dual_multiplier
             mult = get_dual_multiplier(mi.move.type,
                                        target.types[0],
                                        target.types[1] if len(target.types) > 1 else None)
-            return mi.move.power * mult
+            base = mi.move.power * mult
+            if mi.move.category == "status" and not target.status and target.hp_fraction > 0.55:
+                effect = mi.move.effect or {}
+                if any(k in effect for k in ("burn", "poison", "paralyze", "sleep", "freeze")):
+                    base += 55
+            if mi.move.power > 0 and target.current_hp <= max(1, int(base / 2)):
+                base += 40
+            return base
 
         mi = max(usable, key=move_priority)
 
@@ -403,12 +413,12 @@ class BattleSystem:
     # ------------------------------------------------------------------
     # Internal: items
     # ------------------------------------------------------------------
-    def _use_item(self, item: dict) -> str:
+    def _use_item(self, item: dict) -> tuple[list[str], bool]:
         poke = self.player_pokemon
         itype = item.get("type", "")
         if itype == "heal":
             healed = poke.heal(item.get("heal_amount", 20))
-            return f"You used {item['name']}. {poke.name} restored {healed} HP!"
+            return [f"You used {item['name']}. {poke.name} restored {healed} HP!"], False
         if itype == "pokeball":
             return self._attempt_catch(item)
         if itype == "revive":
@@ -416,29 +426,47 @@ class BattleSystem:
             if poke.fainted:
                 poke.fainted = False
                 poke.current_hp = max(1, int(poke.max_hp * frac))
-                return f"{poke.name} was revived!"
-            return f"{poke.name} is not fainted!"
+                return [f"{poke.name} was revived!"], False
+            return [f"{poke.name} is not fainted!"], False
         if itype == "status_cure":
             cures = item.get("cures", [])
             if poke.status in cures:
                 poke.status = None
-                return f"{poke.name} was cured!"
-            return "It had no effect."
-        return f"Used {item.get('name', 'item')}."
+                return [f"{poke.name} was cured!"], False
+            return ["It had no effect."], False
+        return [f"Used {item.get('name', 'item')}."], False
 
-    def _attempt_catch(self, ball: dict) -> str:
-        """Simplified catch formula."""
+    def _attempt_catch(self, ball: dict) -> tuple[list[str], bool]:
         if not self.is_wild:
-            return "You can't catch a trainer's Pokémon!"
-        rate    = self.enemy_pokemon.data.catch_rate / 255.0
-        hp_mod  = (3 * self.enemy_pokemon.max_hp - 2 * self.enemy_pokemon.current_hp)
-        hp_mod  = max(1, hp_mod) / max(1, 3 * self.enemy_pokemon.max_hp)
-        catch_p = rate * hp_mod * ball.get("catch_multiplier", 1.0) * settings.BASE_CATCH_RATE
+            return ["You can't catch a trainer's Pokémon!"], False
+        catch_p = self.get_catch_probability(ball)
+        shakes = max(0, min(3, int(catch_p * 4)))
+        msgs = [f"You threw a {ball.get('name', 'Poké Ball')}!"]
+        msgs.extend(["...shake...", "...shake...", "...shake..."][:shakes])
         if random.random() < catch_p:
             self.enemy_pokemon.fainted = True  # treat as "caught" = remove
             self.phase = BattlePhase.WIN
-            return f"You caught {self.enemy_pokemon.name}!"
-        return f"{self.enemy_pokemon.name} broke free!"
+            self.last_catch_success = True
+            msgs.append(f"Click! You caught {self.enemy_pokemon.name}!")
+            return msgs, True
+        self.last_catch_success = False
+        msgs.append(f"{self.enemy_pokemon.name} broke free!")
+        return msgs, False
+
+    def get_catch_probability(self, ball: dict) -> float:
+        enemy = self.enemy_pokemon
+        base_rate = enemy.data.catch_rate / 255.0
+        hp_factor = (3 * enemy.max_hp - 2 * enemy.current_hp) / max(1, 3 * enemy.max_hp)
+        hp_factor = max(0.15, hp_factor)
+        status_bonus = 1.0
+        if enemy.status in ("sleep", "freeze"):
+            status_bonus = 1.5
+        elif enemy.status in ("paralysis", "burn", "poison"):
+            status_bonus = 1.25
+        skill_bonus = ball.get("catch_skill_bonus", 1.0)
+        chance = (base_rate * hp_factor * status_bonus *
+                  ball.get("catch_multiplier", 1.0) * settings.BASE_CATCH_RATE * skill_bonus)
+        return max(0.02, min(0.95, chance))
 
     # ------------------------------------------------------------------
     # Internal: EXP calculation

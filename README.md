@@ -15,6 +15,9 @@ A fully-featured, modular 2D top-down Pokémon-style game built with Python and 
 - **Move system** — 45+ moves loaded from JSON with PP tracking and secondary effects
 - **NPC system** — dialogue NPCs and trainer NPCs that trigger battles
 - **Inventory system** — Poké Balls, Potions, Revives, status cures
+- **Catch minigame** — timing-based throw ring that boosts/reduces catch chance
+- **Pokédex menu** — tracks Seen vs Caught with completion percentage and stat cards
+- **Trainer progression** — trainer EXP/levels unlock stronger balls and tougher zones
 - **Save / Load** — JSON save files storing player position, team, inventory, and progress
 - **Battle UI** — HP bars, EXP bars, move menu, type badges, status indicators
 - **Dialogue box** — typing-effect character-by-character text reveal
@@ -52,6 +55,7 @@ A fully-featured, modular 2D top-down Pokémon-style game built with Python and 
 | ENTER / E | Interact with NPC or start battle |
 | SPACE | Advance dialogue |
 | I / TAB | Open bag/inventory |
+| P | Open Pokédex |
 | ESC | Pause menu |
 
 ### Battle
@@ -61,6 +65,7 @@ A fully-featured, modular 2D top-down Pokémon-style game built with Python and 
 | Arrow keys / WASD | Navigate menus |
 | ENTER / SPACE | Confirm selection |
 | ESC | Go back |
+| SPACE (while throwing ball) | Trigger catch minigame throw |
 
 ## Project Structure
 

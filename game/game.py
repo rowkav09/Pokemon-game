@@ -27,9 +27,11 @@ from world.collision     import npc_player_interaction, pokemon_encounter_check
 from battle.battle_system import BattleSystem, BattlePhase, BattleAction
 from battle.battle_ui    import BattleUI
 from battle.move         import MoveRegistry
+from ui.catch_minigame   import CatchMinigame
 from ui.dialogue_box     import DialogueBox
 from ui.menus            import (MainMenu, PauseMenu, BattleActionMenu,
-                                  MoveSelectMenu, InventoryMenu)
+                                  MoveSelectMenu, InventoryMenu, PartyMenu)
+from ui.pokedex_ui       import PokedexUI
 
 
 class Game:
@@ -71,6 +73,9 @@ class Game:
         self.tilemap:       TileMap | None  = None
         self.npcs:          list           = []
         self.wild_pokemon:  list[dict]      = []
+        self._zones:        list[dict]      = []
+        self._current_zone_name: str = "Meadow"
+        self._encounter_cooldown = 0.0
 
         # Battle
         self._battle:       BattleSystem | None = None
@@ -87,8 +92,12 @@ class Game:
         self._battle_menu    = BattleActionMenu()
         self._move_menu      = MoveSelectMenu()
         self._inventory_menu = InventoryMenu()
+        self._party_menu     = PartyMenu()
+        self._pokedex_ui     = PokedexUI()
         self._dialogue       = DialogueBox()
         self._dialogue_cb    = None   # callable called when dialogue closes
+        self._catch_minigame: CatchMinigame | None = None
+        self._pending_catch_item: dict | None = None
 
         # Game over overlay
         self._game_over_timer = 0.0
@@ -131,8 +140,12 @@ class Game:
             result = self._pause_menu.handle_event(event)
             if result == "Resume":
                 self.states.pop()
+            elif result == "Pokémon":
+                self.states.push(GameState.PARTY)
             elif result == "Bag":
                 self._open_inventory()
+            elif result == "Pokédex":
+                self._open_pokedex()
             elif result == "Save":
                 self._save_game()
                 self._show_dialogue(["Game saved!"])
@@ -149,6 +162,8 @@ class Game:
                     self._try_interact()
                 elif event.key == pygame.K_i or event.key == pygame.K_TAB:
                     self._open_inventory()
+                elif event.key == pygame.K_p:
+                    self._open_pokedex()
 
         elif state == GameState.DIALOGUE:
             if event.type == pygame.KEYDOWN and event.key in (
@@ -164,12 +179,28 @@ class Game:
         elif state == GameState.BATTLE:
             self._handle_battle_event(event)
 
+        elif state == GameState.CATCH_MINIGAME:
+            if event.type == pygame.KEYDOWN and event.key in (pygame.K_SPACE, pygame.K_RETURN):
+                if self._catch_minigame:
+                    self._catch_minigame.throw()
+
         elif state == GameState.INVENTORY:
             result = self._inventory_menu.handle_event(event)
             if result == "CLOSE":
                 self.states.pop()
             elif isinstance(result, dict):
                 self._use_inventory_item(result)
+
+        elif state == GameState.POKEDEX:
+            total = len(self._pokemon_reg.all_pokemon())
+            result = self._pokedex_ui.handle_event(event, total)
+            if result == "CLOSE":
+                self.states.pop()
+
+        elif state == GameState.PARTY:
+            result = self._party_menu.handle_event(event, len(self.player.team))
+            if result == "CLOSE":
+                self.states.pop()
 
         elif state == GameState.GAME_OVER:
             if event.type == pygame.KEYDOWN:
@@ -223,6 +254,11 @@ class Game:
         elif state == GameState.BATTLE:
             self._update_battle(dt)
 
+        elif state == GameState.CATCH_MINIGAME and self._catch_minigame:
+            self._catch_minigame.update(dt)
+            if self._catch_minigame.finished:
+                self._resolve_catch_minigame()
+
         elif state == GameState.GAME_OVER:
             self._game_over_timer += dt
 
@@ -230,6 +266,16 @@ class Game:
         keys = pygame.key.get_pressed()
         self.player.update(dt, keys, self.tilemap.world_rect)
         self.tilemap.update(self.player.rect)
+        self._encounter_cooldown = max(0.0, self._encounter_cooldown - dt)
+        zone = self._zone_for_point(self.player.rect.centerx, self.player.rect.centery)
+        if zone:
+            self._current_zone_name = zone.get("name", "Unknown")
+            if self._encounter_cooldown <= 0 and self.player._moving:
+                if random.random() < zone.get("encounter_rate", 0.0009):
+                    self._encounter_cooldown = 2.0
+                    wild = self._make_zone_wild_entry(zone, self.player.rect.centerx, self.player.rect.centery)
+                    self._start_wild_battle(wild)
+                    return
 
         # Move wild Pokémon
         for p in self.wild_pokemon:
@@ -268,7 +314,7 @@ class Game:
             self._main_menu.draw(self.screen)
 
         elif state in (GameState.WORLD, GameState.DIALOGUE, GameState.PAUSE,
-                       GameState.INVENTORY):
+                       GameState.INVENTORY, GameState.POKEDEX, GameState.PARTY):
             self._draw_world()
             if state == GameState.DIALOGUE:
                 self._dialogue.draw(self.screen)
@@ -276,10 +322,17 @@ class Game:
                 self._pause_menu.draw(self.screen)
             elif state == GameState.INVENTORY:
                 self._inventory_menu.draw(self.screen)
+            elif state == GameState.POKEDEX:
+                self._draw_pokedex()
+            elif state == GameState.PARTY:
+                self._party_menu.draw(self.screen, self.player.team)
             self._draw_world_hud()
 
-        elif state == GameState.BATTLE:
+        elif state in (GameState.BATTLE, GameState.CATCH_MINIGAME):
             self._draw_battle()
+            if state == GameState.CATCH_MINIGAME and self._catch_minigame and self._battle:
+                ball_name = (self._pending_catch_item or {}).get("name", "Poké Ball")
+                self._catch_minigame.draw(self.screen, self._battle.active_enemy.name, ball_name)
 
         elif state == GameState.GAME_OVER:
             self._draw_game_over()
@@ -312,9 +365,21 @@ class Game:
         self.screen.blit(pill, (8, 8))
         self.screen.blit(txt, (14, 11))
 
+        zone_txt = fnt.render(f"Zone: {self._current_zone_name}", True, settings.WHITE)
+        zpill = pygame.Surface((zone_txt.get_width() + 12, zone_txt.get_height() + 6), pygame.SRCALPHA)
+        zpill.fill((0, 0, 0, 150))
+        self.screen.blit(zpill, (8, 38))
+        self.screen.blit(zone_txt, (14, 41))
+
+        trainer_txt = fnt.render(f"Trainer Lv.{self.player.trainer_level}", True, settings.WHITE)
+        tpill = pygame.Surface((trainer_txt.get_width() + 12, trainer_txt.get_height() + 6), pygame.SRCALPHA)
+        tpill.fill((0, 0, 0, 150))
+        self.screen.blit(tpill, (8, 68))
+        self.screen.blit(trainer_txt, (14, 71))
+
         # Controls hint
         hint_fnt = loader.font("couriernew", 13)
-        hints = ["ARROWS/WASD: Move", "ENTER/E: Interact", "I/TAB: Bag", "ESC: Pause"]
+        hints = ["ARROWS/WASD: Move", "ENTER/E: Interact", "I/TAB: Bag", "P: Pokédex", "ESC: Pause"]
         for i, h in enumerate(hints):
             hs = hint_fnt.render(h, True, settings.LIGHT_GRAY)
             self.screen.blit(hs, (settings.SCREEN_WIDTH - hs.get_width() - 8,
@@ -361,8 +426,7 @@ class Game:
     def _new_game(self) -> None:
         """Initialise a fresh save and enter the world."""
         self.player  = Player()
-        map_data     = load_map_json(os.path.join("data", "map.json"))
-        self.tilemap = build_tilemap(map_data)
+        self._load_world_map()
 
         # Give the player a starter Pokémon (Bulbasaur, id=1)
         starter = self._pokemon_reg.make_instance(1, level=5)
@@ -389,8 +453,7 @@ class Game:
             with open(settings.SAVE_FILE, encoding="utf-8") as f:
                 data = json.load(f)
             self.player      = Player.from_dict(data["player"])
-            map_data         = load_map_json(os.path.join("data", "map.json"))
-            self.tilemap     = build_tilemap(map_data)
+            self._load_world_map()
             self.npcs        = load_npcs()
             # Restore defeated trainers
             for npc_state in data.get("npcs", []):
@@ -413,17 +476,48 @@ class Game:
         with open(settings.SAVE_FILE, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=2)
 
+    def _load_world_map(self) -> None:
+        map_path = os.path.join("data", "map.json")
+        map_data = load_map_json(map_path)
+        self.tilemap = build_tilemap(map_data)
+        self._zones = self._load_zone_data(map_path)
+        self._current_zone_name = self._zones[0]["name"] if self._zones else map_data.name
+
+    @staticmethod
+    def _load_zone_data(map_path: str) -> list[dict]:
+        if not os.path.isfile(map_path):
+            return []
+        with open(map_path, encoding="utf-8") as f:
+            raw = json.load(f)
+        zones = []
+        for z in raw.get("zones", []):
+            zones.append({
+                "id": z.get("id", "meadow"),
+                "name": z.get("name", "Meadow"),
+                "rect": pygame.Rect(*z.get("rect", [0, 0, 0, 0])),
+                "pokemon_ids": z.get("pokemon_ids", []),
+                "level_min": z.get("level_min", 3),
+                "level_max": z.get("level_max", 8),
+                "encounter_rate": z.get("encounter_rate", 0.001),
+            })
+        return zones
+
     # ==================================================================
     # Wild Pokémon spawning
     # ==================================================================
     def _spawn_wild_pokemon(self) -> list[dict]:
-        all_data   = self._pokemon_reg.all_pokemon()
         sheet_path = os.path.join(settings.IMAGES_DIR, "3d_starter_sheet.png")
 
         pokemon_list: list[dict] = []
         for _ in range(settings.WILD_POKEMON_COUNT):
-            pdata   = random.choice(all_data)
-            level   = random.randint(3, 8)
+            zone = random.choice(self._zones) if self._zones else None
+            if zone and zone["pokemon_ids"]:
+                pid = random.choice(zone["pokemon_ids"])
+                level = random.randint(zone["level_min"], zone["level_max"])
+                pdata = self._pokemon_reg.get_by_id(pid)
+            else:
+                pdata = random.choice(self._pokemon_reg.all_pokemon())
+                level = random.randint(3, 8)
             inst    = self._pokemon_reg.make_wild(pdata.id, level)
 
             idx  = pdata.sprite_index
@@ -446,8 +540,13 @@ class Game:
             angle  = random.uniform(0, 2 * math.pi)
             speed  = random.uniform(settings.WILD_POKEMON_SPEED_MIN,
                                     settings.WILD_POKEMON_SPEED_MAX)
-            wx     = random.randint(120, self.tilemap.world_width  - 120)
-            wy     = random.randint(120, self.tilemap.world_height - 120)
+            if zone:
+                zr = zone["rect"]
+                wx = random.randint(zr.left + 20, max(zr.left + 21, zr.right - 20))
+                wy = random.randint(zr.top + 20, max(zr.top + 21, zr.bottom - 20))
+            else:
+                wx = random.randint(120, self.tilemap.world_width - 120)
+                wy = random.randint(120, self.tilemap.world_height - 120)
             pokemon_list.append({
                 "instance": inst,
                 "x":  wx, "y":  wy,
@@ -492,6 +591,7 @@ class Game:
 
         wild_inst: PokemonInstance = wild_entry["instance"]
         wild_inst.reset_battle_state()
+        self.player.see_pokemon(wild_inst.data.id)
 
         self._battle    = BattleSystem(
             player_team   = self.player.team,
@@ -514,6 +614,8 @@ class Game:
             return
 
         trainer_team = npc.build_team(self._pokemon_reg)
+        for tp in trainer_team:
+            self.player.see_pokemon(tp.data.id)
         self._battle = BattleSystem(
             player_team   = self.player.team,
             enemy_pokemon = trainer_team[0],
@@ -522,6 +624,7 @@ class Game:
             trainer_team  = trainer_team,
         )
         self._trainer_npc = npc
+        self.player.see_pokemon(self._battle.active_enemy.data.id)
 
         self.states.push(GameState.BATTLE)
         msgs = self._battle.start()
@@ -569,26 +672,32 @@ class Game:
         phase = self._battle.phase
 
         if phase == BattlePhase.WIN:
+            extra_messages: list[str] = []
             # Pokémon was caught
             enemy = self._battle.active_enemy
-            if getattr(enemy, "fainted", False) and self._battle.is_wild:
+            if self._battle.is_wild and self._battle.last_catch_success:
                 caught = enemy
                 # Add to team if room
                 if len(self.player.team) < 6:
                     self.player.team.append(caught)
-                    self.player.pokedex.add(caught.data.id)
+                    self.player.catch_pokemon(caught.data.id)
+                    extra_messages.append(f"{caught.name} joined your party!")
                 # Remove from overworld
                 if hasattr(self, "_wild_entry_in_battle"):
                     try:
                         self.wild_pokemon.remove(self._wild_entry_in_battle)
                     except ValueError:
                         pass
+                extra_messages.extend(self.player.gain_trainer_exp(35))
             # Trainer defeated
             if self._trainer_npc:
                 self._trainer_npc.defeated = True
+                extra_messages.extend(self.player.gain_trainer_exp(60))
                 self._trainer_npc = None
 
-            self._end_battle(["Battle ended!"])
+            if not extra_messages:
+                extra_messages.append("Battle ended!")
+            self._end_battle(extra_messages)
 
         elif phase == BattlePhase.LOSE:
             # Heal all Pokémon to half HP
@@ -602,6 +711,8 @@ class Game:
     def _end_battle(self, extra_messages: list[str] | None) -> None:
         self._battle = None
         self.states.pop()   # return to WORLD
+        if extra_messages:
+            self._show_dialogue(extra_messages)
 
     # ==================================================================
     # Bag in battle
@@ -629,11 +740,91 @@ class Game:
         result = []
         for item in all_items:
             qty = self.player.item_count(item["id"])
+            if battle and item.get("type") == "pokeball" and item["id"] not in self.player.unlocked_balls:
+                continue
             if qty > 0:
                 entry = dict(item)
                 entry["quantity"] = qty
+                if battle and item.get("type") == "pokeball" and self._battle:
+                    chance = self._battle.get_catch_probability(entry)
+                    entry["description"] = f"{entry.get('description', '')} (Catch ~{int(chance * 100)}%)"
                 result.append(entry)
         return result
+
+    def _open_pokedex(self) -> None:
+        self.states.push(GameState.POKEDEX)
+
+    def _draw_pokedex(self) -> None:
+        entries = []
+        for pdata in sorted(self._pokemon_reg.all_pokemon(), key=lambda p: p.id):
+            seen = pdata.id in self.player.pokedex_seen
+            caught = pdata.id in self.player.pokedex
+            entries.append({
+                "id": pdata.id,
+                "name": pdata.name,
+                "types": list(pdata.types),
+                "stats": dict(pdata.base_stats),
+                "seen": seen,
+                "caught": caught,
+                "flavor": f"A {', '.join(pdata.types).title()}-type Pokémon species.",
+            })
+        self._pokedex_ui.draw(
+            self.screen,
+            entries,
+            seen_count=len(self.player.pokedex_seen),
+            caught_count=len(self.player.pokedex),
+        )
+
+    def _start_catch_minigame(self, item: dict) -> None:
+        self._pending_catch_item = dict(item)
+        self._catch_minigame = CatchMinigame()
+        self.states.push(GameState.CATCH_MINIGAME)
+
+    def _resolve_catch_minigame(self) -> None:
+        if not self._battle or not self._catch_minigame or not self._pending_catch_item:
+            return
+        item = dict(self._pending_catch_item)
+        item["catch_skill_bonus"] = self._catch_minigame.skill_multiplier
+        self._pending_catch_item = None
+        self._catch_minigame = None
+        self.states.pop()
+        self._submit_battle_action(BattleAction(kind="item", item=item))
+
+    def _zone_for_point(self, x: int, y: int) -> dict | None:
+        for zone in self._zones:
+            if zone["id"] not in self.player.unlocked_zones:
+                continue
+            if zone["rect"].collidepoint(x, y):
+                return zone
+        return None
+
+    def _make_zone_wild_entry(self, zone: dict, x: int, y: int) -> dict:
+        options = zone.get("pokemon_ids") or [1]
+        pid = random.choice(options)
+        level = random.randint(zone.get("level_min", 3), zone.get("level_max", 8))
+        inst = self._pokemon_reg.make_wild(pid, level)
+        idx = inst.data.sprite_index
+        col = idx % 6
+        row = idx // 6
+        frame = loader.sub_image(
+            os.path.join(settings.IMAGES_DIR, "3d_starter_sheet.png"),
+            pygame.Rect(
+                col * settings.POKEMON_FRAME_WIDTH,
+                row * settings.POKEMON_FRAME_HEIGHT,
+                settings.POKEMON_FRAME_WIDTH,
+                settings.POKEMON_FRAME_HEIGHT,
+            ),
+            scale=(settings.POKEMON_DISPLAY_WIDTH, settings.POKEMON_DISPLAY_HEIGHT),
+        )
+        return {
+            "instance": inst,
+            "x": float(x),
+            "y": float(y),
+            "dx": 0.0,
+            "dy": 0.0,
+            "frame": frame,
+            "moving": False,
+        }
 
     def _use_inventory_item(self, item: dict) -> None:
         iid = item["id"]
@@ -641,10 +832,12 @@ class Game:
             return
 
         if getattr(self, "_inventory_is_battle", False) and self._battle:
-            # Submit the item as the player's battle action and execute turn
-            action = BattleAction(kind="item", item=item)
             self.states.pop()   # close inventory first
-            self._submit_battle_action(action)
+            if item.get("type") == "pokeball":
+                self._start_catch_minigame(item)
+            else:
+                action = BattleAction(kind="item", item=item)
+                self._submit_battle_action(action)
         else:
             self.states.pop()  # close inventory
             self._show_dialogue([f"Used {item['name']}."])

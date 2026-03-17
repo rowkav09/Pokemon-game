@@ -55,9 +55,14 @@ class Player:
             "awakening": 1,
         }
         self.pokedex: set[int] = set()
+        self.pokedex_seen: set[int] = set()
         self.money: int = 3000
         self.name: str = "RED"
         self.badges: int = 0
+        self.trainer_level: int = 1
+        self.trainer_exp: int = 0
+        self.unlocked_balls: list[str] = ["pokeball"]
+        self.unlocked_zones: list[str] = ["meadow"]
 
         # Sprite
         self._animations: dict[str, list[pygame.Surface]] = {}
@@ -189,6 +194,35 @@ class Player:
     def add_item(self, item_id: str, qty: int = 1) -> None:
         self.inventory[item_id] = self.inventory.get(item_id, 0) + qty
 
+    def see_pokemon(self, pokemon_id: int) -> None:
+        self.pokedex_seen.add(pokemon_id)
+
+    def catch_pokemon(self, pokemon_id: int) -> None:
+        self.pokedex_seen.add(pokemon_id)
+        self.pokedex.add(pokemon_id)
+
+    def gain_trainer_exp(self, amount: int) -> list[str]:
+        self.trainer_exp += amount
+        messages = [f"{self.name} gained {amount} Trainer EXP!"]
+        while self.trainer_exp >= self.trainer_level * 100:
+            self.trainer_level += 1
+            messages.append(f"Trainer level increased to {self.trainer_level}!")
+            if self.trainer_level == 2 and "great_ball" not in self.unlocked_balls:
+                self.unlocked_balls.append("great_ball")
+                self.add_item("great_ball", 2)
+                messages.append("Great Ball unlocked! You received ×2.")
+                if "grove" not in self.unlocked_zones:
+                    self.unlocked_zones.append("grove")
+                    messages.append("A new area feels safer to explore: Grove.")
+            if self.trainer_level == 4 and "ultra_ball" not in self.unlocked_balls:
+                self.unlocked_balls.append("ultra_ball")
+                self.add_item("ultra_ball", 2)
+                messages.append("Ultra Ball unlocked! You received ×2.")
+                if "ridge" not in self.unlocked_zones:
+                    self.unlocked_zones.append("ridge")
+                    messages.append("A challenging area is now open: Ridge.")
+        return messages
+
     # ------------------------------------------------------------------
     # Save / Load
     # ------------------------------------------------------------------
@@ -200,7 +234,12 @@ class Player:
             "name":      self.name,
             "money":     self.money,
             "badges":    self.badges,
+            "trainer_level": self.trainer_level,
+            "trainer_exp": self.trainer_exp,
+            "unlocked_balls": self.unlocked_balls,
+            "unlocked_zones": self.unlocked_zones,
             "inventory": self.inventory,
+            "pokedex_seen": list(self.pokedex_seen),
             "pokedex":   list(self.pokedex),
             "team":      [p.to_dict() for p in self.team],
         }
@@ -213,8 +252,13 @@ class Player:
         p.name      = d.get("name", "RED")
         p.money     = d.get("money", 3000)
         p.badges    = d.get("badges", 0)
+        p.trainer_level = d.get("trainer_level", 1)
+        p.trainer_exp = d.get("trainer_exp", 0)
+        p.unlocked_balls = d.get("unlocked_balls", ["pokeball"])
+        p.unlocked_zones = d.get("unlocked_zones", ["meadow"])
         p.inventory = d.get("inventory", p.inventory)
         p.pokedex   = set(d.get("pokedex", []))
+        p.pokedex_seen = set(d.get("pokedex_seen", d.get("pokedex", [])))
         registry = PokemonRegistry.instance()
         p.team = [
             __import__("entities.pokemon", fromlist=["PokemonInstance"]).PokemonInstance.from_dict(td, registry)

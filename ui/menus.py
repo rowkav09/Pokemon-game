@@ -143,7 +143,7 @@ class MainMenu:
 # Pause Menu
 # ---------------------------------------------------------------------------
 class PauseMenu:
-    OPTIONS = ["Resume", "Pokémon", "Bag", "Save", "Quit to Title"]
+    OPTIONS = ["Resume", "Pokémon", "Bag", "Pokédex", "Save", "Quit to Title"]
 
     def __init__(self):
         w, h = 280, 200
@@ -350,3 +350,49 @@ class InventoryMenu:
         hint = loader.font("couriernew", 14).render(
             "↑↓ Navigate   ENTER Use   ESC Close", True, settings.GRAY)
         surface.blit(hint, (r.left + pad, r.bottom - 20))
+
+
+class PartyMenu:
+    def __init__(self):
+        self._selected = 0
+        self._rect = pygame.Rect(80, 70, 640, 560)
+
+    def handle_event(self, event: pygame.event.Event, team_size: int) -> str | int | None:
+        if event.type != pygame.KEYDOWN:
+            return None
+        if event.key in (pygame.K_ESCAPE,):
+            return "CLOSE"
+        if team_size <= 0:
+            return None
+        if event.key in (pygame.K_UP, pygame.K_w):
+            self._selected = max(0, self._selected - 1)
+        elif event.key in (pygame.K_DOWN, pygame.K_s):
+            self._selected = min(team_size - 1, self._selected + 1)
+        return None
+
+    def draw(self, surface: pygame.Surface, team: list) -> None:
+        overlay = pygame.Surface((settings.SCREEN_WIDTH, settings.SCREEN_HEIGHT), pygame.SRCALPHA)
+        overlay.fill((0, 0, 0, 170))
+        surface.blit(overlay, (0, 0))
+
+        pygame.draw.rect(surface, settings.UI_BG, self._rect, border_radius=8)
+        pygame.draw.rect(surface, settings.UI_BORDER, self._rect, 2, border_radius=8)
+        title = loader.font("couriernew", 28, bold=True).render("PARTY", True, settings.UI_HIGHLIGHT)
+        surface.blit(title, (self._rect.left + 16, self._rect.top + 14))
+        row_h = 78
+        name_fnt = loader.font("couriernew", 20, bold=True)
+        stat_fnt = loader.font("couriernew", 15)
+
+        for i, p in enumerate(team):
+            y = self._rect.top + 60 + i * row_h
+            row = pygame.Rect(self._rect.left + 10, y, self._rect.width - 20, row_h - 8)
+            if i == self._selected:
+                pygame.draw.rect(surface, (60, 60, 100), row, border_radius=6)
+            pygame.draw.rect(surface, settings.UI_BORDER, row, 1, border_radius=6)
+            nm = name_fnt.render(f"{p.name}  Lv.{p.level}", True, settings.WHITE)
+            hp = stat_fnt.render(f"HP {p.current_hp}/{p.max_hp}   Status: {p.status or 'Healthy'}", True, settings.LIGHT_GRAY)
+            surface.blit(nm, (row.left + 12, row.top + 10))
+            surface.blit(hp, (row.left + 12, row.top + 40))
+
+        hint = stat_fnt.render("ESC Close", True, settings.GRAY)
+        surface.blit(hint, (self._rect.left + 14, self._rect.bottom - 24))
