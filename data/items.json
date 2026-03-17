@@ -1,0 +1,107 @@
+[
+  {
+    "id": "pokeball",
+    "name": "Poké Ball",
+    "description": "A device for catching wild Pokémon.",
+    "type": "pokeball",
+    "catch_multiplier": 1.0,
+    "quantity": 5
+  },
+  {
+    "id": "great_ball",
+    "name": "Great Ball",
+    "description": "A good-quality Poké Ball with a higher catch rate.",
+    "type": "pokeball",
+    "catch_multiplier": 1.5,
+    "quantity": 0
+  },
+  {
+    "id": "ultra_ball",
+    "name": "Ultra Ball",
+    "description": "An ultra-performance Poké Ball with a very high catch rate.",
+    "type": "pokeball",
+    "catch_multiplier": 2.0,
+    "quantity": 0
+  },
+  {
+    "id": "potion",
+    "name": "Potion",
+    "description": "Restores 20 HP to a single Pokémon.",
+    "type": "heal",
+    "heal_amount": 20,
+    "quantity": 3
+  },
+  {
+    "id": "super_potion",
+    "name": "Super Potion",
+    "description": "Restores 50 HP to a single Pokémon.",
+    "type": "heal",
+    "heal_amount": 50,
+    "quantity": 0
+  },
+  {
+    "id": "hyper_potion",
+    "name": "Hyper Potion",
+    "description": "Restores 200 HP to a single Pokémon.",
+    "type": "heal",
+    "heal_amount": 200,
+    "quantity": 0
+  },
+  {
+    "id": "full_restore",
+    "name": "Full Restore",
+    "description": "Fully restores HP and cures all status conditions.",
+    "type": "heal",
+    "heal_amount": 9999,
+    "cures_status": true,
+    "quantity": 0
+  },
+  {
+    "id": "revive",
+    "name": "Revive",
+    "description": "Revives a fainted Pokémon to half its max HP.",
+    "type": "revive",
+    "heal_fraction": 0.5,
+    "quantity": 1
+  },
+  {
+    "id": "max_revive",
+    "name": "Max Revive",
+    "description": "Revives a fainted Pokémon to full HP.",
+    "type": "revive",
+    "heal_fraction": 1.0,
+    "quantity": 0
+  },
+  {
+    "id": "antidote",
+    "name": "Antidote",
+    "description": "Cures a Pokémon of poison.",
+    "type": "status_cure",
+    "cures": ["poison", "bad_poison"],
+    "quantity": 2
+  },
+  {
+    "id": "burn_heal",
+    "name": "Burn Heal",
+    "description": "Cures a Pokémon of a burn.",
+    "type": "status_cure",
+    "cures": ["burn"],
+    "quantity": 0
+  },
+  {
+    "id": "awakening",
+    "name": "Awakening",
+    "description": "Cures a Pokémon of sleep.",
+    "type": "status_cure",
+    "cures": ["sleep"],
+    "quantity": 1
+  },
+  {
+    "id": "paralyze_heal",
+    "name": "Paralyze Heal",
+    "description": "Cures a Pokémon of paralysis.",
+    "type": "status_cure",
+    "cures": ["paralysis"],
+    "quantity": 0
+  }
+]
