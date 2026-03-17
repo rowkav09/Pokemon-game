@@ -19,7 +19,10 @@ class GameState(Enum):
     WORLD     = auto()
     DIALOGUE  = auto()
     BATTLE    = auto()
+    CATCH_MINIGAME = auto()
     INVENTORY = auto()
+    POKEDEX   = auto()
+    PARTY     = auto()
     PAUSE     = auto()
     GAME_OVER = auto()
 
