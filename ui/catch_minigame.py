@@ -63,23 +63,38 @@ class CatchMinigame:
     def perfect_radius(self) -> float:
         return 32.0
 
-    def draw(self, surface: pygame.Surface, pokemon_name: str, ball_name: str) -> None:
+    def draw(self, surface: pygame.Surface, pokemon_name: str, ball_name: str,
+             pokemon_surface: pygame.Surface | None = None) -> None:
         overlay = pygame.Surface((settings.SCREEN_WIDTH, settings.SCREEN_HEIGHT), pygame.SRCALPHA)
-        overlay.fill((0, 0, 0, 150))
+        overlay.fill((0, 0, 0, 160))
         surface.blit(overlay, (0, 0))
 
-        cx, cy = settings.SCREEN_WIDTH // 2, settings.SCREEN_HEIGHT // 2 - 20
+        cx = settings.SCREEN_WIDTH // 2
+
+        # Title
+        f1 = loader.font("couriernew", 26, bold=True)
+        f2 = loader.font("couriernew", 16)
+        title = f1.render(f"Catching {pokemon_name}!", True, settings.UI_HIGHLIGHT)
+        surface.blit(title, (cx - title.get_width() // 2, 40))
+
+        # Pokémon sprite (scaled up) above the target circles
+        if pokemon_surface is not None:
+            scaled = pygame.transform.scale(pokemon_surface, (140, 140))
+            surface.blit(scaled, (cx - 70, 80))
+
+        # Target circles
+        cy = 330
         pygame.draw.circle(surface, (220, 80, 80), (cx, cy), 76, 2)
         pygame.draw.circle(surface, (90, 230, 90), (cx, cy), int(self.perfect_radius), 2)
         pygame.draw.circle(surface, (255, 255, 255), (cx, cy), int(self.current_radius), 3)
         pygame.draw.circle(surface, settings.WHITE, (cx, cy), 10)
         pygame.draw.circle(surface, settings.RED, (cx, cy), 10, 2)
 
-        f1 = loader.font("couriernew", 24, bold=True)
-        f2 = loader.font("couriernew", 16)
-        title = f1.render(f"Catch {pokemon_name}", True, settings.UI_HIGHLIGHT)
-        tip = f2.render(f"Time your throw with {ball_name}", True, settings.WHITE)
-        result = f1.render(self._result_text, True, settings.WHITE)
-        surface.blit(title, (cx - title.get_width() // 2, 80))
-        surface.blit(tip, (cx - tip.get_width() // 2, 118))
-        surface.blit(result, (cx - result.get_width() // 2, settings.SCREEN_HEIGHT - 120))
+        tip = f2.render(
+            f"Press SPACE to throw {ball_name} — match the green ring!",
+            True, settings.WHITE,
+        )
+        surface.blit(tip, (cx - tip.get_width() // 2, 430))
+
+        result = f1.render(self._result_text, True, settings.UI_HIGHLIGHT)
+        surface.blit(result, (cx - result.get_width() // 2, settings.SCREEN_HEIGHT - 100))

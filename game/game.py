@@ -77,7 +77,7 @@ class Game:
         self._current_zone_name: str = "Meadow"
         self._encounter_cooldown = 0.0
 
-        # Battle
+        # Battle (trainer battles only — wild encounters use direct-catch)
         self._battle:       BattleSystem | None = None
         self._battle_ui:    BattleUI             = BattleUI()
         self._battle_results: list              = []
@@ -85,6 +85,9 @@ class Game:
         self._battle_phase_label: str           = ""
         self._caught_pokemon: PokemonInstance | None = None
         self._trainer_npc: TrainerNPC | None    = None
+
+        # Direct wild-Pokémon catch (no battle)
+        self._wild_encounter: dict | None = None  # the overworld entry being caught
 
         # UI widgets
         self._main_menu      = MainMenu()
@@ -180,9 +183,10 @@ class Game:
             self._handle_battle_event(event)
 
         elif state == GameState.CATCH_MINIGAME:
-            if event.type == pygame.KEYDOWN and event.key in (pygame.K_SPACE, pygame.K_RETURN):
-                if self._catch_minigame:
-                    self._catch_minigame.throw()
+            if event.type == pygame.KEYDOWN:
+                if event.key in (pygame.K_SPACE, pygame.K_RETURN):
+                    if self._catch_minigame:
+                        self._catch_minigame.throw()
 
         elif state == GameState.INVENTORY:
             result = self._inventory_menu.handle_event(event)
@@ -274,7 +278,7 @@ class Game:
                 if random.random() < zone.get("encounter_rate", 0.0009):
                     self._encounter_cooldown = 2.0
                     wild = self._make_zone_wild_entry(zone, self.player.rect.centerx, self.player.rect.centery)
-                    self._start_wild_battle(wild)
+                    self._start_wild_catch(wild)
                     return
 
         # Move wild Pokémon
@@ -329,10 +333,25 @@ class Game:
             self._draw_world_hud()
 
         elif state in (GameState.BATTLE, GameState.CATCH_MINIGAME):
-            self._draw_battle()
-            if state == GameState.CATCH_MINIGAME and self._catch_minigame and self._battle:
+            if self._battle is not None:
+                self._draw_battle()
+            else:
+                # Direct catch from the overworld — show world as background
+                self._draw_world()
+                self._draw_world_hud()
+            if state == GameState.CATCH_MINIGAME and self._catch_minigame:
+                if self._wild_encounter is not None:
+                    pokemon_name   = self._wild_encounter["instance"].name
+                    pokemon_surface = self._wild_encounter.get("frame")
+                elif self._battle is not None:
+                    pokemon_name   = self._battle.active_enemy.name
+                    pokemon_surface = None
+                else:
+                    pokemon_name   = "Pokémon"
+                    pokemon_surface = None
                 ball_name = (self._pending_catch_item or {}).get("name", "Poké Ball")
-                self._catch_minigame.draw(self.screen, self._battle.active_enemy.name, ball_name)
+                self._catch_minigame.draw(
+                    self.screen, pokemon_name, ball_name, pokemon_surface)
 
         elif state == GameState.GAME_OVER:
             self._draw_game_over()
@@ -379,7 +398,13 @@ class Game:
 
         # Controls hint
         hint_fnt = loader.font("couriernew", 13)
-        hints = ["ARROWS/WASD: Move", "ENTER/E: Interact", "I/TAB: Bag", "P: Pokédex", "ESC: Pause"]
+        hints = [
+            "ARROWS/WASD: Move",
+            "E/ENTER: Throw Ball at nearby Pokémon",
+            "I/TAB: Bag",
+            "P: Pokédex",
+            "ESC: Pause",
+        ]
         for i, h in enumerate(hints):
             hs = hint_fnt.render(h, True, settings.LIGHT_GRAY)
             self.screen.blit(hs, (settings.SCREEN_WIDTH - hs.get_width() - 8,
@@ -441,9 +466,10 @@ class Game:
         self._show_dialogue([
             "Welcome to Pokémon Adventure!",
             "Use arrow keys or WASD to move.",
-            "Press ENTER or E to interact.",
-            "Press SPACE near wild Pokémon to battle!",
-            "Good luck, Trainer!",
+            "Walk up to a wild Pokémon and press",
+            "ENTER or E to throw a Poké Ball!",
+            "Open your Bag (I) to pick which ball to use.",
+            "Good luck catching them all!",
         ])
 
     def _load_game(self) -> bool:
@@ -576,10 +602,10 @@ class Game:
                 self._show_dialogue(lines, speaker=npc.name)
             return
 
-        # Check wild Pokémon encounter (SPACE key while adjacent)
+        # Check wild Pokémon encounter — throw a Poké Ball directly (no battle)
         enc = pokemon_encounter_check(self.player.rect, self.wild_pokemon, radius=80)
         if enc:
-            self._start_wild_battle(enc)
+            self._start_wild_catch(enc)
 
     # ==================================================================
     # Battle: start
@@ -631,6 +657,112 @@ class Game:
         self._battle_ui.show_messages(msgs)
         self._battle_ui.update_hp_instant(
             self._battle.player_pokemon, self._battle.active_enemy)
+
+    # ==================================================================
+    # Wild catch: direct Poké Ball throw (no battle)
+    # ==================================================================
+    def _start_wild_catch(self, wild_entry: dict) -> None:
+        """Begin a direct Poké Ball throw at a wild Pokémon (no battle)."""
+        wild_inst = wild_entry["instance"]
+        self.player.see_pokemon(wild_inst.data.id)
+
+        if len(self.player.team) >= 6:
+            self._show_dialogue([
+                f"A wild {wild_inst.name} appeared!",
+                "Your party is full — release a Pokémon first!",
+            ])
+            return
+
+        ball = self._get_best_available_ball()
+        if ball is None:
+            self._show_dialogue([
+                f"A wild {wild_inst.name} appeared!",
+                "You have no Poké Balls!",
+                "Visit a shop to stock up.",
+            ])
+            return
+
+        if not self.player.use_item(ball["id"]):
+            self._show_dialogue([
+                f"A wild {wild_inst.name} appeared!",
+                "You have no Poké Balls left!",
+            ])
+            return
+
+        self._wild_encounter   = wild_entry
+        self._pending_catch_item = dict(ball)
+        self._catch_minigame   = CatchMinigame()
+        self.states.push(GameState.CATCH_MINIGAME)
+
+    def _get_best_available_ball(self) -> dict | None:
+        """Return the best Poké Ball the player currently has, or None."""
+        try:
+            with open(os.path.join("data", "items.json"), encoding="utf-8") as f:
+                all_items: list[dict] = json.load(f)
+        except Exception:  # noqa: BLE001
+            return None
+        for bid in ("ultra_ball", "great_ball", "pokeball"):
+            if bid in self.player.unlocked_balls and self.player.item_count(bid) > 0:
+                for item in all_items:
+                    if item["id"] == bid:
+                        entry = dict(item)
+                        entry["quantity"] = self.player.item_count(bid)
+                        return entry
+        return None
+
+    def _resolve_direct_catch(self, ball: dict) -> None:
+        """Handle the outcome of a direct (no-battle) catch attempt."""
+        wild_entry = self._wild_encounter
+        self._wild_encounter = None
+        if wild_entry is None:
+            return
+
+        wild_inst = wild_entry["instance"]
+        catch_p = self._compute_catch_probability(wild_inst, ball)
+        shakes   = max(0, min(3, int(catch_p * 4)))
+        msgs = [f"You threw a {ball.get('name', 'Poké Ball')} at {wild_inst.name}!"]
+        msgs.extend(["...shake...", "...shake...", "...shake..."][:shakes])
+
+        if random.random() < catch_p:
+            msgs.append(f"Gotcha!  {wild_inst.name} was caught!")
+            if len(self.player.team) < 6:
+                self.player.team.append(wild_inst)
+                self.player.catch_pokemon(wild_inst.data.id)
+                msgs.append(f"{wild_inst.name} joined your party!")
+            else:
+                msgs.append("But your party is full!")
+            try:
+                self.wild_pokemon.remove(wild_entry)
+            except ValueError:
+                pass
+            msgs.extend(self.player.gain_trainer_exp(35))
+        else:
+            msgs.append(f"{wild_inst.name} broke free and fled!")
+            try:
+                self.wild_pokemon.remove(wild_entry)
+            except ValueError:
+                pass
+
+        self._show_dialogue(msgs)
+
+    @staticmethod
+    def _compute_catch_probability(wild_inst: "PokemonInstance", ball: dict) -> float:
+        """Calculate catch probability for a direct Poké Ball throw.
+
+        Because the wild Pokémon is at full HP (no damage dealt before throwing),
+        the HP factor is fixed below 1.0 to keep catches balanced yet achievable.
+        """
+        base_rate  = wild_inst.data.catch_rate / 255.0
+        # Wild Pokémon hasn't been weakened — use a moderate factor
+        # (same formula as BattleSystem but capped at full-health value ≈ 0.33;
+        #  we use 0.55 to keep direct catches reasonably fair)
+        hp_factor  = 0.55
+        skill_bonus = ball.get("catch_skill_bonus", 1.0)
+        chance = (base_rate * hp_factor
+                  * ball.get("catch_multiplier", 1.0)
+                  * settings.BASE_CATCH_RATE
+                  * skill_bonus)
+        return max(0.05, min(0.90, chance))
 
     # ==================================================================
     # Battle: action submission & message draining
@@ -781,14 +913,22 @@ class Game:
         self.states.push(GameState.CATCH_MINIGAME)
 
     def _resolve_catch_minigame(self) -> None:
-        if not self._battle or not self._catch_minigame or not self._pending_catch_item:
+        if not self._catch_minigame or not self._pending_catch_item:
             return
         item = dict(self._pending_catch_item)
         item["catch_skill_bonus"] = self._catch_minigame.skill_multiplier
         self._pending_catch_item = None
-        self._catch_minigame = None
+        self._catch_minigame     = None
         self.states.pop()
-        self._submit_battle_action(BattleAction(kind="item", item=item))
+
+        if self._battle is not None:
+            # In-battle catch (trainer battles use bag mid-fight)
+            self._submit_battle_action(BattleAction(kind="item", item=item))
+        elif self._wild_encounter is not None:
+            # Direct overworld catch
+            self._resolve_direct_catch(item)
+        else:
+            self._show_dialogue(["The throw missed!"])
 
     def _zone_for_point(self, x: int, y: int) -> dict | None:
         for zone in self._zones:
